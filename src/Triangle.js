@@ -5,6 +5,8 @@ class Triangle {
     this.color = [1.0, 1.0, 1.0, 1.0];  // Color (RGBA)
     this.size = 5.0;  // Size of the triangle
     this.rotationAngle = angle;  // Rotation angle in radians
+
+    this.buffer == null;
   }
 
   // Function to apply rotation transformation
@@ -62,7 +64,7 @@ function drawTriangle(vertices){
     }
 
     // Bind the buffer object to target
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
 
     // Write date into the buffer object
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW);
@@ -77,18 +79,17 @@ function drawTriangle(vertices){
     // return n;
 }
 
-function drawTriangle3D(vertices){
+function drawTriangle3D(buffer, vertices){
   var n = 3; // The number of vertices
   
-  // Create a buffer object
-  var vertexBuffer = gl.createBuffer();
-  if(!vertexBuffer){
-      console.log('Failed to create the buffer object');
-      return -1;
-  }
-
+  // // Create a buffer object
+  // var vertexBuffer = gl.createBuffer();
+  // if(!vertexBuffer){
+  //     console.log('Failed to create the buffer object');
+  //     return -1;
+  // }
   // Bind the buffer object to target
-  gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
 
   // Write date into the buffer object
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW);
@@ -99,6 +100,6 @@ function drawTriangle3D(vertices){
   // Enable the assignment to a_Position variable
   gl.enableVertexAttribArray(a_Position);
 
-  gl.drawArrays(gl.TRIANGLES, 0, n);
+  gl.drawArrays(gl.TRIANGLES, 0, vertices.length/3);
   // return n;
 }
