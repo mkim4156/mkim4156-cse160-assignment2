@@ -5,54 +5,99 @@ class Cube{
       this.matrix = new Matrix4();
 
       this.buffer = null;
-    }
-  
-    drawCube(matrix, color){
-      var xy = this.position;
-      var rgba = color;
-      var size = this.size;
-      this.matrix = matrix;
+      this.uvBuffer = null;
+      this.vertices = new Float32Array([
+        // Front of Cube
+        0.0, 0.0, 0.0,  1.0, 1.0, 0.0,  1.0, 0.0, 0.0,
+        0.0, 0.0, 0.0,  0.0, 1.0, 0.0,  1.0, 1.0, 0.0,
 
-      if(this.buffer === null){
+        // Top of Cube
+        0, 1, 0,  0, 1, 1,  1, 1, 1,
+        0, 1, 0,  1, 1, 1,  1, 1, 0,
+
+        // Left side of Cube
+        0, 1, 0,  0, 1, 1,  0, 0, 1,
+        0, 0, 0,  0, 0, 1,  0, 1, 0,
+
+        // Right side of Cube
+        1, 1, 0,  1, 1, 1,  1, 0, 1,
+        1, 0, 0,  1, 1, 0,  1, 0, 1,
+
+        // Bottom of Cube
+        0, 0, 0,  0, 0, 1,  1, 0, 0,
+        1, 0, 0,  1, 0, 1,  0, 0, 1,
+
+        // Back of Cube
+        0.0, 0.0, 1.0,  1.0, 1.0, 1.0,  1.0, 0.0, 1.0,
+        0.0, 0.0, 1.0,  0.0, 1.0, 1.0,  1.0, 1.0, 1.0
+      ]);
+      this.uvs = new Float32Array([  // Combined UV coordinates
+        0, 0, 1, 1, 1, 0,  // Front
+        0, 0, 0, 1, 1, 1,
+        0, 0, 0, 1, 1, 1,  // Top
+        0, 0, 1, 1, 1, 0,
+        1, 1, 0, 1, 0, 0,  // Left
+        1, 0, 0, 0, 1, 1,
+        0, 1, 1, 1, 1, 0,  // Right
+        0, 0, 0, 1, 1, 0,
+        0, 1, 1, 1, 0, 0,  // Bottom
+        0, 0, 0, 1, 1, 1,
+        0, 0, 1, 1, 1, 0,  // Back
+        0, 0, 0, 1, 1, 1
+    ]);
+      this.textureNum = -1;
+    }
+    initBuffers() { // Add this function
+      if (this.buffer === null) {  // Only create if it doesn't exist
         this.buffer = gl.createBuffer();
-        if(!this.buffer){
-          console.log("Failed to create buffer object");
-          return -1;
+        if (!this.buffer) {
+            console.error("Failed to create vertex buffer object");
+            return;
         }
-      }
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW); // STATIC_DRAW
 
-      // Pass the color of a point to u_FragColor variable
-      gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
-      
-      // Pass the matrix to u_ModelMatrix attribute
-      gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
-
-      let v = [0.0,0.0,0.0, 1.0,1.0,0.0, 1.0,0.0,0.0, 0.0,0.0,0.0, 0.0,1.0,0.0, 1.0,1.0,0.0, 0,1,0, 0,1,1, 1,1,1, 0,1,0, 1,1,1, 1,1,0, 0,1,0, 0,1,1, 0,0,1, 0,0,0, 0,0,1, 0,1,0, 1,1,0, 1,1,1, 1,0,1, 1,0,0, 1,1,0, 1,0,1, 0,0,0, 0,0,1, 1,0,0, 1,0,0, 1,0,1, 0,0,1 ]
-      drawTriangle3D(this.buffer, v );
-      // Front of Cube
-      // drawTriangle3D(this.buffer, [0.0,0.0,0.0, 1.0,1.0,0.0, 1.0,0.0,0.0 ] );
-      // drawTriangle3D(this.buffer, [0.0,0.0,0.0, 0.0,1.0,0.0, 1.0,1.0,0.0 ] );
-
-      // Pass the color of a point to u_FragColor uniform variables
-      gl.uniform4f(u_FragColor, rgba[0]*0.9, rgba[1]*.9, rgba[2]*.9, rgba[3])
-
-      // Top of cube
-      // drawTriangle3D(this.buffer, [0,1,0, 0,1,1, 1,1,1] );
-      // drawTriangle3D(this.buffer, [0,1,0, 1,1,1, 1,1,0] );
-
-      // // Left side of cube
-      // drawTriangle3D(this.buffer, [0,1,0, 0,1,1, 0,0,1] );
-      // drawTriangle3D(this.buffer, [0,0,0, 0,0,1, 0,1,0] );
-
-      // // Right side of cube
-      // drawTriangle3D(this.buffer, [1,1,0, 1,1,1, 1,0,1] );
-      // drawTriangle3D(this.buffer, [1,0,0, 1,1,0, 1,0,1] );
-
-      // // Bottom of cube
-      // drawTriangle3D(this.buffer, [0,0,0, 0,0,1, 1,0,0] );
-      // drawTriangle3D(this.buffer, [1,0,0, 1,0,1, 0,0,1] );
-            
-      // Other sides of cube top, bottom, left, right, back
-      // <fill this in yourself>
+        this.uvBuffer = gl.createBuffer();
+        if (!this.uvBuffer) {
+            console.error("Failed to create UV buffer object");
+            return;
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.uvBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, this.uvs, gl.STATIC_DRAW); // STATIC_DRAW
     }
+  }
+  drawCube(matrix, color) {
+    this.matrix = matrix;
+
+    this.initBuffers(); // Initialize if not already done
+
+    gl.uniform1i(u_whichTexture, this.textureNum);
+    gl.uniform4f(u_FragColor, color[0], color[1], color[2], color[3]);
+    gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
+
+    //  Combine draw calls by using vertex indices if possible.  This example keeps the triangle pairs, but you can potentially use an index buffer to draw all 12 faces with a single draw call.
+    gl.uniform4f(u_FragColor, color[0] * 0.9, color[1] * 0.9, color[2] * 0.9, color[3]);
+
+    // Draw all faces using the same buffer.  This is much more efficient than rebinding the buffer for every face.
+    drawTriangle3DUV(this.buffer, this.uvBuffer, 36); // 36 vertices for 12 triangles
+}
+
+renderfast() {
+  var color = this.color;
+  this.initBuffers();
+
+  gl.uniform4f(u_FragColor, color[0], color[1], color[2], color[3]);
+  gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
+  gl.uniform1i(u_whichTexture, this.textureNum);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
+  gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(a_Position);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.uvBuffer);
+  gl.vertexAttribPointer(a_UV, 2, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(a_UV);
+
+  gl.drawArrays(gl.TRIANGLES, 0, 36); // Draw all triangles at once
+}
 }

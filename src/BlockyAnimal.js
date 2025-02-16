@@ -2,18 +2,42 @@
 // Vertex shader program
 var VSHADER_SOURCE = `
   attribute vec4 a_Position;
+  attribute vec2 a_UV;
+  varying vec2 v_UV;
   uniform mat4 u_ModelMatrix;
   uniform mat4 u_GlobalRotateMatrix;
+  uniform mat4 u_ViewMatrix;
+  uniform mat4 u_ProjectionMatrix;
   void main() {
-    gl_Position = u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
+    gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
+    v_UV = a_UV;
   }`;
 
 // Fragment shader program
 var FSHADER_SOURCE = `
   precision mediump float;
+  varying vec2 v_UV;
   uniform vec4 u_FragColor;
+  uniform sampler2D u_Sampler0;
+  uniform sampler2D u_Sampler1;
+  uniform sampler2D u_Sampler2;
+  uniform int u_whichTexture;
   void main() {
-    gl_FragColor = u_FragColor;
+
+    if(u_whichTexture == -2){
+      gl_FragColor = u_FragColor;
+    } else if(u_whichTexture == -1){
+      gl_FragColor = vec4(v_UV, 1.0, 1.0); 
+    }else if(u_whichTexture == 0){
+      gl_FragColor = texture2D(u_Sampler0, v_UV);
+    }else if(u_whichTexture == 1){
+      gl_FragColor = texture2D(u_Sampler1, v_UV);
+    }else if(u_whichTexture == 2){
+      gl_FragColor = texture2D(u_Sampler2, v_UV);
+    }
+    else{
+      gl_FragColor = vec4(1,.2,.2,1);
+    }
   }`;
 
 // Global Variables
@@ -29,6 +53,14 @@ let g_legAnimation = false;
 let g_neckAngle = -77;
 let g_tailAngle = -45;
 let special_button = false;
+
+//Assignment 3 Global Variables
+let a_UV;
+let u_Sampler0;
+let u_Sampler1;
+let u_Sampler2;
+let u_ProjectionMatrix;
+let u_ViewMatrix;
 
 function setupWebGL() {
   // Retrieve <canvas> element
@@ -65,10 +97,24 @@ function connectVariablesToGLSL() {
     return;
   }
 
+  // // Get the storage location of a_UV
+  a_UV = gl.getAttribLocation(gl.program, "a_UV");
+  if (a_UV < 0) {
+    console.log("Failed to get the storage location of a_UV");
+    return;
+  }
+
   // Get the storage location of u_FragColor
   u_FragColor = gl.getUniformLocation(gl.program, "u_FragColor");
   if (!u_FragColor) {
     console.log("Failed to get the storage location of u_FragColor");
+    return;
+  }
+
+  // Get the storage location of u_FragColor
+  u_whichTexture = gl.getUniformLocation(gl.program, "u_whichTexture");
+  if (!u_whichTexture) {
+    console.log("Failed to get the storage location of u_whichTexture");
     return;
   }
 
@@ -86,51 +132,163 @@ function connectVariablesToGLSL() {
     return;
   }
 
+  // Get the storage location of u_ViewMatrix
+  u_ViewMatrix = gl.getUniformLocation(gl.program, 'u_ViewMatrix');
+  if (!u_ViewMatrix){
+    console.log('Failed to get the storage location of u_ViewMatrix');
+    return;
+  }
+
+  // Get the storage location of u_ViewMatrix
+  u_ProjectionMatrix = gl.getUniformLocation(gl.program, 'u_ProjectionMatrix');
+  if (!u_ProjectionMatrix){
+    console.log('Failed to get the storage location of u_ProjectionMatrix');
+    return;
+  }
+
+  // Get the storage location of u_GlobalRotateMatrix
+  u_Sampler0 = gl.getUniformLocation(gl.program, 'u_Sampler0');
+  if (!u_Sampler0){
+    console.log('Failed to get the storage location of u_Sampler0');
+    return;
+  }
+  
+  // Get the storage location of u_GlobalRotateMatrix
+  u_Sampler1 = gl.getUniformLocation(gl.program, 'u_Sampler1');
+  if (!u_Sampler1){
+    console.log('Failed to get the storage location of u_Sampler1');
+    return;
+  }
+
+  // Get the storage location of u_GlobalRotateMatrix
+  u_Sampler2 = gl.getUniformLocation(gl.program, 'u_Sampler2');
+  if (!u_Sampler2){
+    console.log('Failed to get the storage location of u_Sampler2');
+    return;
+  }
+
   // Set an initial value for this matrix to identity
   var identityM = new Matrix4();
   gl.uniformMatrix4fv(u_ModelMatrix, false, identityM.elements);
   
-}
-
-//Set up actions for the HTML UI elements
-function addActionsForHtmlUI() {
-document.getElementById('webgl').onclick = function(event) {
-  if (event.shiftKey) {
-    if(special_button){
-      special_button = false;
-      document.getElementById('murder').innerHTML = '';
-    } else {
-      special_button = true;
-      document.getElementById('murder').innerHTML = 'KILLED!';
-    }
-  }
-  console.log(special_button)
-};
   
   // Button Events
   document.getElementById('animationShinOnButton').onclick = function()  {g_legAnimation = true;};
   document.getElementById('animationShinOffButton').onclick = function()  {g_legAnimation = false;};
   
-  // Limb Slide Events
-  document.getElementById('neckSlide').addEventListener('mousemove', function(){g_neckAngle = this.value; renderScene(); });
-  document.getElementById('shinSlide').addEventListener('mousemove', function(){g_shinAngle = this.value; renderScene(); });
-  document.getElementById('thighSlide').addEventListener('mousemove', function(){g_thighAngle = this.value; renderScene(); });
-  document.getElementById('tailSlide').addEventListener('mousemove', function(){g_tailAngle = this.value; renderScene(); });
-
   // Size Slider Events
   document.getElementById('angleSlide').addEventListener('mousemove', function(){ g_globalAngle = this.value; renderScene(); });
+}
 
+function initTextures(){
+  var image0 = new Image();
+  if(!image0){
+    console.log("Failed to create the image object");
+    return false;
+  }
+
+  var image1 = new Image();
+  if(!image1){
+    console.log("Failed to create the image object");
+    return false;
+  }
+
+  var image2 = new Image();
+  if(!image2){
+    console.log("Failed to create the image object");
+    return false;
+  }
+
+  image0.onload = function(){sendImageToTEXTURE0(image0);}
+  image1.onload = function(){sendImageToTEXTURE1(image1);}
+  image2.onload = function(){sendImageToTEXTURE2(image2);}
+
+
+  image0.src = 'sky.jpg';
+  image1.src = 'diamond.jpg';
+  image2.src = 'grass.jpg';
+
+  // Add more texture here
+
+  return true;
+}
+
+
+function sendImageToTEXTURE0(image){
+  var texture = gl.createTexture();
+  if(!texture){
+    console.log("Failed to create the texture object");
+    return false;
+  }
+
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+
+  gl.activeTexture(gl.TEXTURE0);
+
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+
+  gl.uniform1i(u_Sampler0, 0);
+
+  console.log("Finished loadTexture");
+}
+
+function sendImageToTEXTURE1(image){
+  var texture = gl.createTexture();
+  if(!texture){
+    console.log("Failed to create the texture object");
+    return false;
+  }
+
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+
+  gl.activeTexture(gl.TEXTURE1);
+
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+
+  gl.uniform1i(u_Sampler1, 1);
+
+  console.log("Finished loadTexture");
+}
+
+function sendImageToTEXTURE2(image){
+  var texture = gl.createTexture();
+  if(!texture){
+    console.log("Failed to create the texture object");
+    return false;
+  }
+
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+
+  gl.activeTexture(gl.TEXTURE2);
+
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+
+  gl.uniform1i(u_Sampler2, 2);
+
+  console.log("Finished loadTexture");
 }
 
 function main() {
   setupWebGL();
   connectVariablesToGLSL();
 
-  // Set up actions for the HTML UI elements
-  addActionsForHtmlUI();
+  document.onkeydown = keydown;
 
+  initTextures();
   // Specify the color for clearing <canvas>
-  gl.clearColor(.6, 0.4, 0.0, 1.0);
+  gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
   // Clear <canvas>
   //renderAllShapes();
@@ -141,32 +299,44 @@ let g_globalX = 0;
 let g_globalY = 0;
 let g_startX = 0;
 let g_startY = 0;
-let g_isDragging = false; 
+let g_isDragging = false;
 
 function onMouseDown(ev) {
-  // Capture the start position of the mouse
-  g_startX = ev.clientX;
-  g_startY = ev.clientY;
-  g_isDragging = true;
+    g_startX = ev.clientX;
+    g_startY = ev.clientY;
+    g_isDragging = true;
 }
 
 function onMouseMove(ev) {
-  if (!g_isDragging) return; // Only update if dragging
-  
-  // Calculate the difference in mouse position
-  let dx = ev.clientX - g_startX;
-  let dy = ev.clientY - g_startY;
+    if (!g_isDragging) return;
 
-  // Update global angle based on the movement of the mouse
-  g_globalAngle += dx * 0.5; // Sensitivity adjustment
-  g_globalY += dy * 0.5; // Vertical rotation (Y-axis) - scaling by 0.1 for sensitivity
+    let dx = ev.clientX - g_startX;
+    let dy = ev.clientY - g_startY;
 
-  // Update the starting position for the next movement
-  g_startX = ev.clientX;
-  g_startY = ev.clientY;
+    // Separate horizontal and vertical rotation
+    let horizontalRotation = dx * 0.5; // Sensitivity adjustment
+    let verticalRotation = dy * 0.5;   // Sensitivity adjustment
 
-  // Redraw the giraffe
-  renderScene();
+    // Apply vertical rotation (looking up/down) directly to g_globalY
+    g_globalY += verticalRotation;
+    
+    // Clamp vertical rotation to prevent flipping
+    g_globalY = Math.max(-89, Math.min(89, g_globalY)); // Example limits
+
+    // Apply horizontal rotation (turning left/right) using rotate function
+    rotateView(horizontalRotation);
+
+    g_startX = ev.clientX;
+    g_startY = ev.clientY;
+
+    renderScene();
+}
+
+function rotateView(angle) {
+    var atp = new Vector3().set(g_at).sub(g_eye);
+    const rotationMatrix = new Matrix4().rotate(-angle, g_up.elements[0], g_up.elements[1], g_up.elements[2]); // Note the negative sign for correct direction
+    atp = rotationMatrix.multiplyVector3(atp);
+    g_at.set(g_eye).add(atp);
 }
 
 function onMouseUp(ev) {
@@ -187,10 +357,6 @@ var g_seconds = performance.now()/1000.0 - g_startTime;
 function tick(){
   // Print some debug information so we know we are running
   g_seconds = performance.now()/1000.0 - g_startTime;
-  console.log(g_seconds);
-
-  // Update Animation Angles
-  updateAnimationAngles();
 
   // Draw everything
   renderScene();
@@ -199,18 +365,156 @@ function tick(){
   requestAnimationFrame(tick);
 }
 
-// Update the angles of everything if currently animated
-function updateAnimationAngles(){
-  if(g_legAnimation){
-    g_thighAngle = (45*Math.sin(g_seconds));
-    g_shinAngle = (45*Math.sin(g_seconds));
+
+
+var g_map = [
+  [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4],
+  [4,0,0,0,0,0,0,0,0,4,0,0,0,0,0,4],
+  [4,4,4,4,4,4,4,0,0,4,0,0,0,0,0,4],
+  [4,0,0,0,0,0,0,0,0,4,0,0,4,4,4,4],
+  [4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4],
+  [4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,4],
+  [4,0,0,0,0,0,0,4,0,4,0,0,4,0,0,4],
+  [4,0,0,0,0,0,0,4,0,4,0,0,4,0,0,4],
+  [4,0,0,4,4,0,0,4,0,4,0,0,4,0,0,4],
+  [4,0,0,0,4,0,0,4,0,4,0,0,4,0,0,4],
+  [4,0,0,0,4,0,0,4,0,4,0,0,4,0,0,4],
+  [4,0,0,0,4,0,0,4,0,4,0,0,4,0,0,4],
+  [4,4,4,4,4,0,0,4,4,4,4,4,4,0,0,4],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4],
+  [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4], 
+];
+
+var floor_map = [
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [3,3,3,3,3,3,4,3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [3,0,1,2,2,2,2,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [3,1,1,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [3,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [3,3,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [3,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [3,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [3,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [3,1,1,2,1,1,0,0,1,1,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [3,2,2,2,2,2,2,2,2,1,1,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [3,3,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+];
+
+var roof_map = [
+  [1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1],
+];
+function drawMap(map, sizex, sizey, height, text, xaxis, yaxis) {
+
+  for (let x = 0; x < sizex; x++) {
+    for (let y = 0; y < sizey; y++) {
+      const tileType = map[x][y]; // Store the tile type
+
+      if (tileType === 1) {
+        const wall = new Cube();
+        wall.matrix.translate(x - xaxis, height === 1 ? -0.75 : 0.75 * height, y - yaxis);
+        wall.textureNum = text;
+        wall.renderfast();
+      } else if (tileType >= 2 && tileType <= 4) { // Combine conditions
+        let heightMultiplier = 1;
+        if (tileType === 3){
+          heightMultiplier = 2.5;
+        } else if (tileType === 4){
+          heightMultiplier = 3.5;
+        }
+
+        const startHeight = -0.75 * height;
+        const endHeight = 0.75 * heightMultiplier;
+        const step = 0.75;
+
+        for (let i = startHeight; i <= endHeight; i += step) {
+          const wall = new Cube();
+          wall.matrix.translate(x - xaxis, i, y - yaxis);
+          wall.textureNum = text;
+          wall.renderfast();
+        }
+      }
+    }
   }
 }
+
+// w is 87 go forward
+// s is 83 backward
+// a is 65 left
+// d is 68 right
+// q is 81 rotate left
+// e is 69 rotate left
+var g_eye = new Vector3([10,0,-8]);
+var g_at = new Vector3([0,0, 100]);
+var g_up = new Vector3([0, 1, 0]);
+function keydown(ev){
+  if(ev.keyCode == 87){ // W - Forward
+      var d = new Vector3().set(g_at).sub(g_eye).normalize(); // Create a new Vector3
+      g_eye.add(d);
+      g_at.add(d); // Correct: Add the change (d) to g_at
+  } else if(ev.keyCode == 83){ // S - Backward
+      var d = new Vector3().set(g_at).sub(g_eye).normalize(); // Create a new Vector3
+      g_eye.sub(d);
+      g_at.sub(d); // Correct: Subtract the change (d) from g_at
+  } else if (ev.keyCode == 65) { // A - Left
+    rotateView(-5); // Use rotateView for Q and E too
+} else if (ev.keyCode == 68) { // D - Right
+    rotateView(5);  // Use rotateView for Q and E too
+} else if (ev.keyCode == 81) { // Q - Rotate Left
+    rotateView(-5); // Use rotateView for Q and E too
+} else if (ev.keyCode == 69) { // E - Rotate Right
+    rotateView(5);  // Use rotateView for Q and E too
+}
+
+  renderScene();
+}
+
+
+// Function to convert radians to degrees
+function radiansToDegrees(radians) {
+  return radians * (180 / Math.PI);
+}
+
+// Function to convert degrees to radians
+function degreesToRadians(degrees) {
+  return degrees * (Math.PI / 180);
+}
+
+// Function to calculate the arctangent of y/x in degrees
+function calculateArctanFromCoordinates(y, x) {
+  return Math.atan2(y, x) * (180 / Math.PI);
+}
+
 
 // this is going to be renderScene() in the future
 function renderScene() {
   // Check the time at the start of this function
   var startTime = performance.now();
+
+  var projMat = new Matrix4();
+  projMat.setPerspective(60, canvas.width/canvas.height, .1, 100);
+  gl.uniformMatrix4fv(u_ProjectionMatrix, false, projMat.elements);
+
+  var viewMat = new Matrix4();
+  viewMat.setLookAt(g_eye.elements[0], g_eye.elements[1], g_eye.elements[2], g_at.elements[0], g_at.elements[1], g_at.elements[2], g_up.elements[0], g_up.elements[1], g_up.elements[2]);
+  gl.uniformMatrix4fv(u_ViewMatrix, false, viewMat.elements);
+
 
   var globalRotMat = new Matrix4().rotate(g_globalAngle, 0, 1, 0).rotate(g_globalY, 1, 0, 0); 
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMat.elements);
@@ -219,6 +523,9 @@ function renderScene() {
   // Clear <canvas>
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.clear(gl.COLOR_BUFFER_BIT);
+
+  drawMap(g_map, 16, 16, 1, 1, 4, 4);
+  drawMap(floor_map, 20, 28, 1, 2, -1, 15);
 
   // Create Giraffe Here:
   createGiraffe(g_shinAngle, g_thighAngle, g_neckAngle, g_tailAngle);
@@ -240,6 +547,23 @@ function sendTextToHTML(text, htmlID){
 
 // Creates one of the four Giraffe's Leg!
 function createGiraffe(shinAngle, thighAngle, neckAngle, tailAngle){
+
+  var floor = new Cube();
+  floor.textureNum = 2;
+  floor.matrix.translate(0, -.75, 0);
+  floor.matrix.scale(30, 0, 30);
+  floor.matrix.translate(-.5, 0, -0.5);
+  floor.renderfast();
+
+  var sky = new Cube();
+  sky.textureNum = 0;
+  sky.matrix.scale(30, 30, 30);
+  sky.matrix.translate(-.5, -.5, -.5, -.5);
+  sky.renderfast();
+
+
+  ////////////////////////////
+
   if(shinAngle <= 0){
     shinAngle = 0;
   }
@@ -522,3 +846,4 @@ function createGiraffe(shinAngle, thighAngle, neckAngle, tailAngle){
   endMatrix.scale(0.12, .06, .15);
   end.drawCube(endMatrix, [0, 0, 0, 1]);
 }
+
